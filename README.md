@@ -8,8 +8,6 @@ A collection of [Claude Code](https://claude.ai/code) plugins.
 curl -fsSL https://raw.githubusercontent.com/cgraf78/claude-plugins/main/install.sh | bash
 ```
 
-Then follow the plugin-specific setup below.
-
 ---
 
 ## claude-statusline
@@ -29,26 +27,15 @@ hostname | ~/path/to/dir (branch +*%) | 🤖 sonnet-4.6 | 🧠 42% | 💰 $0.08 
 - **Cost** — cumulative session cost in USD
 - **Turns** — number of user turns in the conversation
 
-### Setup
-
-After installing, run `/statusline-setup` in any Claude Code session to configure your `~/.claude/settings.json`.
-
-## Requirements
+### Requirements
 
 - `bash`
 - `jq`
 - `git` (optional, for branch display)
 
-## Manual setup
+### Setup
 
-If you prefer to configure manually, add this to `~/.claude/settings.json`:
-
-```json
-"statusLine": {
-  "type": "command",
-  "command": "bash ~/.claude/plugins/cache/cgraf78/claude-statusline/1.0.0/scripts/statusline.sh"
-}
-```
+After installing, run `/statusline-setup` in any Claude Code session to configure your `~/.claude/settings.json`.
 
 ## License
 
