@@ -15,13 +15,18 @@ MAGENTA='\033[0;35m'
 RED='\033[0;31m'
 FAST_ORANGE='\033[38;2;255;120;20m'
 RESET='\033[0m'
+SEP=' | '
 
-# Extract values
-cwd=$(printf '%s' "$input" | jq -r '.workspace.current_dir // .cwd // empty')
-model_id=$(printf '%s' "$input" | jq -r '.model.id // empty')
-used=$(printf '%s' "$input" | jq -r '.context_window.used_percentage // empty')
-total_cost=$(printf '%s' "$input" | jq -r '.cost.total_cost_usd // empty')
-transcript=$(printf '%s' "$input" | jq -r '.transcript_path // empty')
+# Extract values (single jq call)
+read -r cwd model_id used total_cost transcript < <(
+    printf '%s' "$input" | jq -r '[
+        .workspace.current_dir // .cwd // "",
+        .model.id // "",
+        .context_window.used_percentage // "",
+        .cost.total_cost_usd // "",
+        .transcript_path // ""
+    ] | @tsv'
+)
 
 # Short model name (strip claude- prefix and date suffix)
 model=""
@@ -38,8 +43,8 @@ fi
 # Fast mode
 fast_mode=$(jq -r '.fastMode // false' ~/.claude/settings.json 2>/dev/null)
 
-# Hostname
-host=$(hostname -s)
+# Hostname (bash builtin, no fork)
+host="${HOSTNAME%%.*}"
 
 # Directory (replace $HOME with ~)
 dir="?"
@@ -53,11 +58,12 @@ if [ -n "$cwd" ] && command -v git >/dev/null 2>&1; then
     branch=$(git -C "$cwd" symbolic-ref --short HEAD 2>/dev/null \
              || git -C "$cwd" rev-parse --short HEAD 2>/dev/null)
     if [ -n "$branch" ]; then
-        status=$(git -C "$cwd" --no-optional-locks status --porcelain 2>/dev/null)
-        flags=""
-        printf '%s' "$status" | grep -qE '^[MADRC]' && flags="${flags}+"
-        printf '%s' "$status" | grep -qE '^.[MDRC]' && flags="${flags}*"
-        printf '%s' "$status" | grep -q '^??' && flags="${flags}%"
+        flags=$(git -C "$cwd" --no-optional-locks status --porcelain 2>/dev/null | awk '
+            /^[MADRC]/  { staged=1 }
+            /^.[MDRC]/  { unstaged=1 }
+            /^\?\?/     { untracked=1 }
+            END { if(staged) printf "+"; if(unstaged) printf "*"; if(untracked) printf "%%" }
+        ')
         [ -n "$flags" ] && flags=" $flags"
         branch_part=" (${branch}${flags})"
     fi
@@ -81,10 +87,14 @@ cost_fmt=""
 if [ -n "$total_cost" ] && [ "$total_cost" != "null" ] && [ "$total_cost" != "0" ]; then
     cost_fmt=$(printf "%.2f" "$total_cost" 2>/dev/null || echo "0.00")
 else
-    total_in=$(printf '%s' "$input" | jq -r '.context_window.total_input_tokens // 0')
-    total_out=$(printf '%s' "$input" | jq -r '.context_window.total_output_tokens // 0')
-    cache_write=$(printf '%s' "$input" | jq -r '.context_window.current_usage.cache_creation_input_tokens // 0')
-    cache_read=$(printf '%s' "$input" | jq -r '.context_window.current_usage.cache_read_input_tokens // 0')
+    read -r total_in total_out cache_write cache_read < <(
+        printf '%s' "$input" | jq -r '[
+            .context_window.total_input_tokens // 0,
+            .context_window.total_output_tokens // 0,
+            .context_window.current_usage.cache_creation_input_tokens // 0,
+            .context_window.current_usage.cache_read_input_tokens // 0
+        ] | @tsv'
+    )
     if [ "$total_in" -gt 0 ] 2>/dev/null || [ "$total_out" -gt 0 ] 2>/dev/null; then
         cost_fmt=$(awk -v id="$model_id" \
                        -v tin="$total_in" -v tout="$total_out" \
@@ -99,32 +109,22 @@ else
     fi
 fi
 
-# Turn count from transcript
+# Transcript: turn count + session name (single pass)
 turn_count=""
+session_name=""
 if [ -n "$transcript" ] && [ -f "$transcript" ]; then
-    turn_count=$(jq -s '
-      [.[] | select(.type == "user")] |
-      map(select(
+    turn_count=$(jq 'select(.type == "user") | select(
         (.message.content | type) == "string" and
         (.message.content | startswith("<local-command") | not) and
         (.message.content | startswith("<command-name>") | not)
-      )) | length
-    ' "$transcript" 2>/dev/null || echo "0")
-fi
-
-# Session name
-session_name=""
-if [ -n "$transcript" ] && [ -f "$transcript" ]; then
-    session_name=$(grep '^{"type":"custom-title"' "$transcript" 2>/dev/null | tail -1 | jq -r '.customTitle // empty')
+    )' "$transcript" 2>/dev/null | grep -c '^{' || echo "0")
+    session_name=$(tac "$transcript" 2>/dev/null \
+        | grep -m1 '^{"type":"custom-title"' \
+        | jq -r '.customTitle // empty')
 fi
 
 # Build status line
-LINE=""
-SEP=""
-
 LINE="${BOLD_CYAN}${host}${RESET}"
-SEP=" | "
-
 LINE="${LINE}${SEP}${GREEN}${dir}${BRIGHT_GREEN}${branch_part}${RESET}"
 
 if [ -n "$session_name" ]; then
