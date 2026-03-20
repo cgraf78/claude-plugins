@@ -18,7 +18,7 @@ hostname | ~/path/to/dir (branch +*%) | 🤖 sonnet-4.6 | 🧠 42% | 💰 $0.08 
 ## Installation
 
 ```sh
-claude plugin marketplace add cgraf78/claude-statusline
+claude plugin marketplace add cgraf78/claude-plugins
 claude plugin install claude-statusline
 ```
 

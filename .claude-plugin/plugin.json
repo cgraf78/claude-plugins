@@ -6,7 +6,7 @@
     "name": "Chris Graf",
     "url": "https://github.com/cgraf78"
   },
-  "repository": "https://github.com/cgraf78/claude-statusline",
+  "repository": "https://github.com/cgraf78/claude-plugins",
   "license": "MIT",
   "keywords": ["statusline", "status", "ui", "cost", "context", "git"]
 }

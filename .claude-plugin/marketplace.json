@@ -1,5 +1,5 @@
 {
-  "name": "cgraf78-claude-statusline",
+  "name": "cgraf78-claude-plugins",
   "owner": {
     "name": "Chris Graf",
     "url": "https://github.com/cgraf78"
@@ -15,7 +15,7 @@
       },
       "source": "./",
       "category": "productivity",
-      "homepage": "https://github.com/cgraf78/claude-statusline"
+      "homepage": "https://github.com/cgraf78/claude-plugins"
     }
   ]
 }
