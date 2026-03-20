@@ -18,7 +18,8 @@ hostname | ~/path/to/dir (branch +*%) | 🤖 sonnet-4.6 | 🧠 42% | 💰 $0.08 
 ## Installation
 
 ```sh
-claude plugin install cgraf78/claude-statusline
+claude plugin marketplace add cgraf78/claude-statusline
+claude plugin install claude-statusline
 ```
 
 Then run `/statusline-setup` in any Claude Code session to configure your `~/.claude/settings.json`.

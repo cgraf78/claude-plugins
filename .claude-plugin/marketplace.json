@@ -1,0 +1,21 @@
+{
+  "name": "cgraf78-claude-statusline",
+  "owner": {
+    "name": "Chris Graf",
+    "url": "https://github.com/cgraf78"
+  },
+  "plugins": [
+    {
+      "name": "claude-statusline",
+      "description": "Rich status line showing host, directory, git branch, model, context usage, cost, and turn count.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Chris Graf",
+        "url": "https://github.com/cgraf78"
+      },
+      "source": "./",
+      "category": "productivity",
+      "homepage": "https://github.com/cgraf78/claude-statusline"
+    }
+  ]
+}
