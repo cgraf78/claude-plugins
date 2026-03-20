@@ -1,0 +1,12 @@
+{
+  "name": "claude-statusline",
+  "version": "1.0.0",
+  "description": "A rich status line for Claude Code showing host, directory, git branch, model, context usage, cost, and turn count.",
+  "author": {
+    "name": "Chris Graf",
+    "url": "https://github.com/cgraf78"
+  },
+  "repository": "https://github.com/cgraf78/claude-statusline",
+  "license": "MIT",
+  "keywords": ["statusline", "status", "ui", "cost", "context", "git"]
+}
