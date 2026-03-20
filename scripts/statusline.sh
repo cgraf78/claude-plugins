@@ -18,15 +18,19 @@ RESET='\033[0m'
 SEP=' | '
 
 # Extract values (single jq call)
-read -r cwd model_id used total_cost transcript < <(
-    printf '%s' "$input" | jq -r '[
-        .workspace.current_dir // .cwd // "",
-        .model.id // "",
-        .context_window.used_percentage // "",
-        .cost.total_cost_usd // "",
-        .transcript_path // ""
-    ] | @tsv'
-)
+{
+    read -r cwd
+    read -r model_id
+    read -r used
+    read -r total_cost
+    read -r transcript
+} < <(printf '%s' "$input" | jq -r '
+    .workspace.current_dir // .cwd // "",
+    .model.id // "",
+    .context_window.used_percentage // "",
+    .cost.total_cost_usd // "",
+    .transcript_path // ""
+')
 
 # Short model name (strip claude- prefix and date suffix)
 model=""
@@ -87,14 +91,17 @@ cost_fmt=""
 if [ -n "$total_cost" ] && [ "$total_cost" != "null" ] && [ "$total_cost" != "0" ]; then
     cost_fmt=$(printf "%.2f" "$total_cost" 2>/dev/null || echo "0.00")
 else
-    read -r total_in total_out cache_write cache_read < <(
-        printf '%s' "$input" | jq -r '[
-            .context_window.total_input_tokens // 0,
-            .context_window.total_output_tokens // 0,
-            .context_window.current_usage.cache_creation_input_tokens // 0,
-            .context_window.current_usage.cache_read_input_tokens // 0
-        ] | @tsv'
-    )
+    {
+        read -r total_in
+        read -r total_out
+        read -r cache_write
+        read -r cache_read
+    } < <(printf '%s' "$input" | jq -r '
+        .context_window.total_input_tokens // 0,
+        .context_window.total_output_tokens // 0,
+        .context_window.current_usage.cache_creation_input_tokens // 0,
+        .context_window.current_usage.cache_read_input_tokens // 0
+    ')
     if [ "$total_in" -gt 0 ] 2>/dev/null || [ "$total_out" -gt 0 ] 2>/dev/null; then
         cost_fmt=$(awk -v id="$model_id" \
                        -v tin="$total_in" -v tout="$total_out" \
