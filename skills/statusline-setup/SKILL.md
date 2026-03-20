@@ -11,9 +11,9 @@ Configure the Claude Code status line to use this plugin.
 
 ## Steps
 
-1. Read `~/.claude/plugins/installed_plugins.json` and find the `installPath` for the plugin whose name contains `claude-statusline`. If not found, tell the user the plugin does not appear to be installed and stop.
+1. Read `~/.claude/plugins/installed_plugins.json` and find the entry whose name contains `claude-statusline`. Extract the `installPath`. If not found, tell the user the plugin does not appear to be installed and stop.
 
-2. The statusline script is at `<installPath>/scripts/statusline.sh`. Verify the file exists.
+2. Derive the version-independent glob path from the install path by replacing the version component with `*`. For example, if the install path is `/Users/chris/.claude/plugins/cache/cgraf78-claude-plugins/claude-statusline/1.0.0`, the glob path is `~/.claude/plugins/cache/cgraf78-claude-plugins/claude-statusline/*/scripts/statusline.sh`. Verify the actual file exists at the install path.
 
 3. Check whether `~/.claude/settings.json` exists.
    - If it does not exist, create it with the content `{}`.
@@ -21,9 +21,9 @@ Configure the Claude Code status line to use this plugin.
      ```json
      "statusLine": {
        "type": "command",
-       "command": "bash <installPath>/scripts/statusline.sh"
+       "command": "bash ~/.claude/plugins/cache/cgraf78-claude-plugins/claude-statusline/*/scripts/statusline.sh"
      }
      ```
-   Use the actual absolute install path — do not use environment variables or `~`.
+   Use the glob path with `~` and `*` for the version — this survives plugin updates without reconfiguration.
 
 4. Confirm to the user that the status line has been configured and will take effect immediately.
