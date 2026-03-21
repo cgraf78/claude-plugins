@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-set -e
 
-# Add marketplace if not already registered, then always update to get latest plugin versions.
+# Register marketplace if not already, then update to get latest plugin versions.
+# Update failure (e.g. network blip) is non-fatal — cached versions will be used.
 claude plugin marketplace add cgraf78/claude-plugins 2>/dev/null || true
-claude plugin marketplace update cgraf78-claude-plugins
+claude plugin marketplace update cgraf78-claude-plugins || true
 
-# Discover plugins from marketplace.json — works for both curl-pipe and local execution.
+# Discover plugins dynamically from marketplace.json.
+# Abort if this fails — there's nothing useful to do without the plugin list.
 plugins=$(curl -fsSL \
     "https://raw.githubusercontent.com/cgraf78/claude-plugins/main/.claude-plugin/marketplace.json" \
-    | jq -r '.plugins[].name')
+    | jq -r '.plugins[].name') || { echo "error: failed to fetch marketplace.json" >&2; exit 1; }
 
-# Install or update each plugin.
-# `claude plugin install` installs if missing; `claude plugin update` upgrades if already installed.
-# Running both handles all cases: fresh install, re-run, and version bumps.
+# Install then update each plugin. Running both unconditionally handles all
+# cases: fresh install, re-run at same version, and version bumps.
 for plugin in $plugins; do
-    claude plugin install "$plugin" 2>/dev/null || \
-        claude plugin update "$plugin"
+    claude plugin install "$plugin" 2>/dev/null || true
+    claude plugin update  "$plugin" 2>/dev/null || true
 done
