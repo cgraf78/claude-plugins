@@ -1,6 +1,6 @@
 ---
 name: memory-sync-setup
-description: Configure Claude Code memory sync to a cloud drive. Writes the cloud root path to pluginConfigs in ~/.claude/settings.json and installs a Stop hook to keep symlinks current.
+description: Configure Claude Code memory sync to a cloud drive. Writes the machine-specific cloud root path to pluginConfigs in ~/.claude/settings.local.json and installs a Stop hook in settings.json to keep symlinks current.
 argument-hint: ""
 allowed-tools: [Read, Edit, Write, Bash]
 ---
@@ -24,12 +24,15 @@ is shared across machines.
 
    Expand any `~` to the full home path before saving.
 
-3. Check whether `~/.claude/settings.json` exists.
+3. The cloud root path is machine-specific, so it goes in `~/.claude/settings.local.json`
+   (not `settings.json`, which is typically synced across machines via dotfiles).
+
+   Check whether `~/.claude/settings.local.json` exists.
    - If not, create it with content `{}`.
 
-   Read the file and add or replace two keys, preserving all other content:
+   Read the file and add or replace the `pluginConfigs` key, preserving all other content:
 
-   **a. Plugin config** (use the `pluginConfigs` field — the correct place for plugin settings):
+   **Plugin config** (use the `pluginConfigs` field — the correct place for plugin settings):
    ```json
    "pluginConfigs": {
      "memory-sync@cgraf78-claude-plugins": {
@@ -43,7 +46,11 @@ is shared across machines.
    If `pluginConfigs` already exists, add or replace only the `memory-sync@cgraf78-claude-plugins`
    key within it, preserving other plugin configs.
 
-   **b. Stop hook** (add to the existing `hooks.Stop` array, or create it):
+4. The Stop hook is generic and belongs in `~/.claude/settings.json`. Check whether
+   `~/.claude/settings.json` exists.
+   - If not, create it with content `{}`.
+
+   Add the Stop hook to the existing `hooks.Stop` array, or create it:
    ```json
    "hooks": {
      "Stop": [
@@ -64,11 +71,11 @@ is shared across machines.
    updates without reconfiguration. If a `Stop` array already exists, append the
    new hook entry rather than replacing the array.
 
-4. Run the sync script once to wire up all existing project directories immediately:
+5. Run the sync script once to wire up all existing project directories immediately:
    ```bash
    bash ~/.claude/plugins/cache/cgraf78-claude-plugins/memory-sync/*/scripts/sync-memory.sh
    ```
 
-5. Show the user a summary: which cloud root was configured, which project directories
+6. Show the user a summary: which cloud root was configured, which project directories
    were linked (if any output was produced by the script), and a reminder to run
    `/memory-sync-setup` on each other machine pointing to the same cloud root path.
