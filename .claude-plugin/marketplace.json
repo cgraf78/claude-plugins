@@ -16,6 +16,18 @@
       "source": "./",
       "category": "productivity",
       "homepage": "https://github.com/cgraf78/claude-plugins"
+    },
+    {
+      "name": "memory-sync",
+      "description": "Sync Claude Code project memory directories to a cloud drive for sharing across machines.",
+      "version": "1.0.0",
+      "author": {
+        "name": "Chris Graf",
+        "url": "https://github.com/cgraf78"
+      },
+      "source": "./memory-sync",
+      "category": "productivity",
+      "homepage": "https://github.com/cgraf78/claude-plugins"
     }
   ]
 }
