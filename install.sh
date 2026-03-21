@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 set -e
 
-# Add marketplace if not already registered, otherwise update it to get latest plugin versions.
-claude plugin marketplace add cgraf78/claude-plugins 2>/dev/null || \
-    claude plugin marketplace update cgraf78-claude-plugins
+# Add marketplace if not already registered, then always update to get latest plugin versions.
+claude plugin marketplace add cgraf78/claude-plugins 2>/dev/null || true
+claude plugin marketplace update cgraf78-claude-plugins
 
 # Discover plugins from marketplace.json — works for both curl-pipe and local execution.
 plugins=$(curl -fsSL \
