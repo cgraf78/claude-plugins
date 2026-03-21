@@ -1,6 +1,6 @@
 ---
 name: memory-sync-setup
-description: Configure Claude Code memory sync to a cloud drive. Writes the cloud root path to ~/.claude/settings.json and installs a Stop hook to keep symlinks current.
+description: Configure Claude Code memory sync to a cloud drive. Writes the cloud root path to pluginConfigs in ~/.claude/settings.json and installs a Stop hook to keep symlinks current.
 argument-hint: ""
 allowed-tools: [Read, Edit, Write, Bash]
 ---
@@ -29,12 +29,19 @@ is shared across machines.
 
    Read the file and add or replace two keys, preserving all other content:
 
-   **a. Plugin config:**
+   **a. Plugin config** (use the `pluginConfigs` field — the correct place for plugin settings):
    ```json
-   "memory-sync": {
-     "cloudRoot": "/full/expanded/path/to/cloud-memory"
+   "pluginConfigs": {
+     "memory-sync@cgraf78-claude-plugins": {
+       "options": {
+         "cloudRoot": "/full/expanded/path/to/cloud-memory"
+       }
+     }
    }
    ```
+
+   If `pluginConfigs` already exists, add or replace only the `memory-sync@cgraf78-claude-plugins`
+   key within it, preserving other plugin configs.
 
    **b. Stop hook** (add to the existing `hooks.Stop` array, or create it):
    ```json

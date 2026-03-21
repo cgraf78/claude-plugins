@@ -5,7 +5,7 @@
 # essentially free in the common case: a pure-bash symlink check exits
 # immediately when nothing needs doing.
 #
-# Config: ~/.claude/settings.json → "memory-sync".cloudRoot
+# Config: ~/.claude/settings.json → pluginConfigs."memory-sync@cgraf78-claude-plugins".options.cloudRoot
 #
 # Path mapping:
 #   Claude Code encodes absolute paths by replacing / with -.
@@ -26,7 +26,7 @@ PROJECTS="$HOME/.claude/projects"
 
 # Exit silently if settings file is missing or plugin is not configured.
 [ -f "$SETTINGS" ] || exit 0
-cloud_root=$(jq -r '."memory-sync".cloudRoot // empty' "$SETTINGS" 2>/dev/null) || exit 0
+cloud_root=$(jq -r '.pluginConfigs["memory-sync@cgraf78-claude-plugins"].options.cloudRoot // empty' "$SETTINGS" 2>/dev/null) || exit 0
 [ -n "$cloud_root" ] || exit 0
 
 # --- Fast path -------------------------------------------------------------
