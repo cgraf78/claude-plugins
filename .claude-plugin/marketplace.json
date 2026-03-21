@@ -6,14 +6,14 @@
   },
   "plugins": [
     {
-      "name": "claude-statusline",
+      "name": "statusline",
       "description": "Rich status line showing host, directory, git branch, model, context usage, cost, and turn count.",
       "version": "1.0.0",
       "author": {
         "name": "Chris Graf",
         "url": "https://github.com/cgraf78"
       },
-      "source": "./claude-statusline",
+      "source": "./statusline",
       "category": "productivity",
       "homepage": "https://github.com/cgraf78/claude-plugins"
     },

@@ -1,5 +1,5 @@
 {
-  "name": "claude-statusline",
+  "name": "statusline",
   "version": "1.0.0",
   "description": "A rich status line for Claude Code showing host, directory, git branch, model, context usage, cost, and turn count.",
   "author": {
