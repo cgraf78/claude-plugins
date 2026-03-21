@@ -10,7 +10,7 @@ curl -fsSL https://raw.githubusercontent.com/cgraf78/claude-plugins/main/install
 
 ---
 
-## claude-statusline
+## status-line
 
 A rich status line showing:
 
@@ -35,7 +35,7 @@ hostname | ~/path/to/dir (branch +*%) | 🤖 sonnet-4.6 | 🧠 42% | 💰 $0.08 
 
 ### Setup
 
-After installing, run `/statusline-setup` in any Claude Code session to configure your `~/.claude/settings.json`.
+After installing, run `/status-line-setup` in any Claude Code session to configure your `~/.claude/settings.json`.
 
 ---
 
