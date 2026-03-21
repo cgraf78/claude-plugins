@@ -8,5 +8,5 @@
   },
   "repository": "https://github.com/cgraf78/claude-plugins",
   "license": "MIT",
-  "keywords": ["status-line", "status", "ui", "cost", "context", "git"]
+  "keywords": ["statusline", "status", "ui", "cost", "context", "git"]
 }

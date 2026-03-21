@@ -1,0 +1,12 @@
+{
+  "name": "memory-sync",
+  "version": "1.0.0",
+  "description": "Sync Claude Code project memory directories to a cloud drive for sharing across machines.",
+  "author": {
+    "name": "Chris Graf",
+    "url": "https://github.com/cgraf78"
+  },
+  "repository": "https://github.com/cgraf78/claude-plugins",
+  "license": "MIT",
+  "keywords": ["memory", "sync", "cloud", "cross-machine"]
+}
