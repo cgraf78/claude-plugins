@@ -10,8 +10,8 @@ curl -fsSL https://raw.githubusercontent.com/cgraf78/claude-plugins/main/install
 
 ## Plugins
 
-- [status-line](./status-line/) — Rich status line showing host, directory, git, model, context, cost, and turns
-- [memory-sync](./memory-sync/) — Sync project memory to a cloud drive for sharing across machines
+- [status-line](./plugins/status-line/) — Rich status line showing host, directory, git, model, context, cost, and turns
+- [memory-sync](./plugins/memory-sync/) — Sync project memory to a cloud drive for sharing across machines
 
 ## License
 

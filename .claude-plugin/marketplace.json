@@ -8,14 +8,14 @@
     {
       "name": "status-line",
       "description": "Rich status line showing host, directory, git branch, model, context usage, cost, and turn count.",
-      "source": "./status-line",
+      "source": "./plugins/status-line",
       "category": "productivity",
       "homepage": "https://github.com/cgraf78/claude-plugins"
     },
     {
       "name": "memory-sync",
       "description": "Sync Claude Code project memory directories to a cloud drive for sharing across machines.",
-      "source": "./memory-sync",
+      "source": "./plugins/memory-sync",
       "category": "productivity",
       "homepage": "https://github.com/cgraf78/claude-plugins"
     }
