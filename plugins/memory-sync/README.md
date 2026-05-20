@@ -7,7 +7,7 @@ Each `~/.claude/projects/*/memory/` directory is replaced with a symlink pointin
 consistent subdirectory on your cloud drive. The script reads the real project path from
 session transcripts to derive a stable cloud subdirectory:
 
-```
+```text
 ~/git/my-project  →  <cloud-root>/git/my-project
 ~/fbsource        →  <cloud-root>/fbsource       (same on any machine)
 ```

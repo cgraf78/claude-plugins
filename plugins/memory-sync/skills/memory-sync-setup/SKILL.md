@@ -17,7 +17,7 @@ consistent subdirectory on your cloud drive. The script reads the real project p
 session transcripts (not the lossy encoded dir name), then strips the machine-specific
 home prefix:
 
-```
+```text
 ~/git/my-project  →  <cloud-root>/git/my-project
 ~/fbsource        →  <cloud-root>/fbsource       (same on any machine)
 ```
@@ -66,6 +66,7 @@ A `Stop` hook runs after every response to catch newly created project directori
    - If not, create it with content `{}`.
 
    Add the Stop hook to the existing `hooks.Stop` array, or create it:
+
    ```json
    "hooks": {
      "Stop": [

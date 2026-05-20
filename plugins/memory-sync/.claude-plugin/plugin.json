@@ -9,7 +9,5 @@
   "repository": "https://github.com/cgraf78/claude-plugins",
   "license": "MIT",
   "keywords": ["memory", "sync", "cloud", "cross-machine"],
-  "skills": [
-    "./skills/"
-  ]
+  "skills": ["./skills/"]
 }

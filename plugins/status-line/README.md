@@ -2,7 +2,7 @@
 
 A rich status line for Claude Code showing:
 
-```
+```text
 hostname | ~/path/to/dir (branch +*%) | 🤖 sonnet-4.6 | 🧠 42% | 💰 $0.08 | 💬 12 turns
 ```
 
