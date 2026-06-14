@@ -26,9 +26,11 @@ A `Stop` hook runs after every response to catch newly created project directori
 
 ## Steps
 
-1. Find the plugin install path by reading `~/.claude/plugins/installed_plugins.json`
-   and locating the entry whose name is `memory-sync`. Extract the `installPath`.
-   If not found, tell the user the plugin does not appear to be installed and stop.
+1. Read `~/.claude/plugins/installed_plugins.json` and find the entry whose `name`
+   is `memory-sync` to confirm the plugin is installed. The script is referenced
+   below by its version-independent glob path, so the exact install path is not
+   needed. If not found, tell the user the plugin does not appear to be installed
+   and stop.
 
 2. Ask the user for the cloud root path — the directory on their cloud drive where
    memory should be stored. For example:

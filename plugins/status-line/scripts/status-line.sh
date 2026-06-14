@@ -107,6 +107,10 @@ else
       -v tin="$total_in" -v tout="$total_out" \
       -v cw="$cache_write" -v cr="$cache_read" '
         BEGIN {
+            # Fallback per-model prices in USD per million tokens
+            # (input / cache-write / cache-read / output), used only when the
+            # runtime did not supply cost.total_cost_usd. Estimates that will
+            # drift from published Anthropic pricing over time.
             if      (id ~ /opus/)   { pin=15;   pcw=18.75; pcr=1.50; pout=75  }
             else if (id ~ /haiku/)  { pin=0.80; pcw=1;     pcr=0.08; pout=4   }
             else                    { pin=3;    pcw=3.75;  pcr=0.30; pout=15  }
