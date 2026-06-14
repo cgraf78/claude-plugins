@@ -17,7 +17,7 @@ consistent subdirectory on your cloud drive. The script reads the real project p
 session transcripts (not the lossy encoded dir name), then strips the machine-specific
 home prefix:
 
-```
+```text
 ~/git/my-project  →  <cloud-root>/git/my-project
 ~/fbsource        →  <cloud-root>/fbsource       (same on any machine)
 ```
@@ -26,9 +26,11 @@ A `Stop` hook runs after every response to catch newly created project directori
 
 ## Steps
 
-1. Find the plugin install path by reading `~/.claude/plugins/installed_plugins.json`
-   and locating the entry whose name is `memory-sync`. Extract the `installPath`.
-   If not found, tell the user the plugin does not appear to be installed and stop.
+1. Read `~/.claude/plugins/installed_plugins.json` and find the entry whose `name`
+   is `memory-sync` to confirm the plugin is installed. The script is referenced
+   below by its version-independent glob path, so the exact install path is not
+   needed. If not found, tell the user the plugin does not appear to be installed
+   and stop.
 
 2. Ask the user for the cloud root path — the directory on their cloud drive where
    memory should be stored. For example:
@@ -66,6 +68,7 @@ A `Stop` hook runs after every response to catch newly created project directori
    - If not, create it with content `{}`.
 
    Add the Stop hook to the existing `hooks.Stop` array, or create it:
+
    ```json
    "hooks": {
      "Stop": [
