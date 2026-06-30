@@ -49,7 +49,7 @@ fi
 fast_mode=false
 for cfg in "$HOME/.claude/settings.local.json" "$HOME/.claude/settings.json"; do
   [ -f "$cfg" ] || continue
-  value=$(jq -r '.fastMode // empty' "$cfg" 2>/dev/null)
+  value=$(jq -r 'if has("fastMode") then .fastMode else empty end' "$cfg" 2>/dev/null)
   if [ -n "$value" ]; then
     fast_mode="$value"
     break
