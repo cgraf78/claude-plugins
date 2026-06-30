@@ -44,8 +44,17 @@ if [ -n "$model_id" ]; then
     ')
 fi
 
-# Fast mode
-fast_mode=$(jq -r '.fastMode // false' ~/.claude/settings.json 2>/dev/null)
+# Fast mode follows Claude's settings precedence: machine-local settings may
+# override synced global settings without making the plugin depend on dotfiles.
+fast_mode=false
+for cfg in "$HOME/.claude/settings.local.json" "$HOME/.claude/settings.json"; do
+  [ -f "$cfg" ] || continue
+  value=$(jq -r '.fastMode // empty' "$cfg" 2>/dev/null)
+  if [ -n "$value" ]; then
+    fast_mode="$value"
+    break
+  fi
+done
 
 # Hostname (bash builtin, no fork)
 host="${HOSTNAME%%.*}"
