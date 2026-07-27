@@ -1,0 +1,141 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+test_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+root="${test_dir%/test}"
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT
+
+fail() {
+  printf 'claude-plugins-test: %s\n' "$*" >&2
+  exit 1
+}
+
+assert_contains() {
+  local value=$1
+  local expected=$2
+
+  [[ "$value" == *"$expected"* ]] ||
+    fail "expected output to contain: $expected"
+}
+
+check_shell() {
+  local -a shell_files=()
+
+  local file
+  while IFS= read -r file; do
+    shell_files+=("$file")
+  done < <(git -C "$root" ls-files '*.sh')
+  shell_files+=("test/claude-plugins-test")
+  ((${#shell_files[@]} > 0)) || fail "no shell entry points found"
+
+  for file in "${shell_files[@]}"; do
+    bash -n "$root/$file"
+  done
+  shellcheck -x "${shell_files[@]/#/$root/}"
+}
+
+check_manifests() {
+  local marketplace="$root/.claude-plugin/marketplace.json"
+  jq -e '
+    .name | type == "string" and length > 0
+  ' "$marketplace" >/dev/null
+  jq -e '
+    .plugins | length > 0 and
+    ([.[].name] | length == (unique | length)) and
+    ([.[].source] | length == (unique | length))
+  ' "$marketplace" >/dev/null
+
+  local name source plugin_root manifest manifest_name
+  while IFS=$'\t' read -r name source; do
+    plugin_root="$root/${source#./}"
+    manifest="$plugin_root/.claude-plugin/plugin.json"
+    [[ -d "$plugin_root" ]] || fail "missing plugin source for $name: $source"
+    [[ -f "$manifest" ]] || fail "missing plugin manifest for $name"
+    manifest_name=$(jq -er '.name' "$manifest")
+    [[ "$manifest_name" == "$name" ]] ||
+      fail "marketplace name $name does not match manifest name $manifest_name"
+    jq -e '.version | type == "string" and length > 0' "$manifest" >/dev/null
+    jq -e '.skills[]' "$manifest" >/dev/null
+  done < <(jq -r '.plugins[] | [.name, .source] | @tsv' "$marketplace")
+}
+
+check_installer() {
+  local fake_bin="$tmp/fake-bin"
+  local command_log="$tmp/claude-commands"
+  mkdir -p "$fake_bin"
+
+  cat >"$fake_bin/claude" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"$CLAUDE_COMMAND_LOG"
+exit "${FAKE_CLAUDE_STATUS:-0}"
+EOF
+  cat >"$fake_bin/curl" <<'EOF'
+#!/usr/bin/env bash
+if [[ "${FAKE_CURL_FAIL:-0}" == 1 ]]; then
+  exit 22
+fi
+cat "$MARKETPLACE_FIXTURE"
+EOF
+  chmod +x "$fake_bin/claude" "$fake_bin/curl"
+
+  CLAUDE_COMMAND_LOG="$command_log" \
+    FAKE_CLAUDE_STATUS=1 \
+    MARKETPLACE_FIXTURE="$root/.claude-plugin/marketplace.json" \
+    PATH="$fake_bin:$PATH" \
+    bash "$root/install.sh"
+
+  expected=$(
+    cat <<'EOF'
+plugin marketplace add cgraf78/claude-plugins
+plugin marketplace update cgraf78-claude-plugins
+plugin install status-line
+plugin update status-line
+EOF
+  )
+  actual=$(cat "$command_log")
+  [[ "$actual" == "$expected" ]] || fail "installer issued unexpected Claude commands"
+
+  if CLAUDE_COMMAND_LOG="$command_log" \
+    FAKE_CURL_FAIL=1 \
+    MARKETPLACE_FIXTURE="$root/.claude-plugin/marketplace.json" \
+    PATH="$fake_bin:$PATH" \
+    bash "$root/install.sh" >"$tmp/install-failure.out" 2>"$tmp/install-failure.err"; then
+    fail "installer accepted an unavailable marketplace"
+  fi
+  assert_contains "$(cat "$tmp/install-failure.err")" \
+    "error: failed to fetch marketplace.json"
+}
+
+check_status_line() {
+  local home="$tmp/home"
+  local work="$home/work"
+  mkdir -p "$work"
+  git -C "$work" init -q
+  git -C "$work" checkout -q -b main
+
+  local input output plain
+  input=$(jq -cn --arg cwd "$work" '{
+    workspace: {current_dir: $cwd},
+    model: {id: "claude-sonnet-4-5-20250929"},
+    context_window: {used_percentage: 42},
+    cost: {total_cost_usd: 1.23}
+  }')
+  output=$(printf '%s' "$input" |
+    HOME="$home" HOSTNAME=ci-host \
+      bash "$root/plugins/status-line/scripts/status-line.sh")
+  plain=$(printf '%s' "$output" | sed $'s/\033\\[[0-9;]*m//g')
+
+  assert_contains "$plain" "ci-host | ~/work (main)"
+  assert_contains "$plain" "sonnet-4.5"
+  assert_contains "$plain" "42%"
+  assert_contains "$plain" "\$1.23"
+}
+
+check_shell
+check_manifests
+check_installer
+check_status_line
+
+printf 'claude-plugins-test: ok\n'

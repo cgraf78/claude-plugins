@@ -1,0 +1,20 @@
+name: Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  schedule:
+    - cron: "0 7 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  shell:
+    uses: cgraf78/actions/.github/workflows/shell-ci.yml@d0648a98a1585710edb5d1393af84e48025bcaa7
+    with:
+      matrix-set: full
+      profiles: base,shellcheck,jq
+      test-command: test/claude-plugins-test

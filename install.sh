@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+set -o pipefail
+
 # Register marketplace if not already, then update to get latest plugin versions.
 # Update failure (e.g. network blip) is non-fatal — cached versions will be used.
 claude plugin marketplace add cgraf78/claude-plugins 2>/dev/null || true
