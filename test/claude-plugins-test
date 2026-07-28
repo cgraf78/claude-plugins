@@ -204,8 +204,8 @@ EOF
   assert_contains "$plain" "3 turns"
   [[ "$(wc -l <"$git_log" | tr -d '[:space:]')" == "$git_calls" ]] ||
     fail "status line discarded a valid Git cache after transcript growth"
-  [[ "$(wc -l <"$transcript_log" | tr -d '[:space:]')" == "$((transcript_scans + 1))" ]] ||
-    fail "status line did not rescan a changed transcript exactly once"
+  [[ "$(wc -l <"$transcript_log" | tr -d '[:space:]')" == "$transcript_scans" ]] ||
+    fail "status line rescanned the full transcript after an append"
 
   printf '%s' '{"type":"user","message":' >>"$transcript"
   output=$(printf '%s' "$input" |
@@ -233,6 +233,128 @@ EOF
       bash "$root/plugins/status-line/scripts/status-line.sh")
   plain=$(printf '%s' "$output" | sed $'s/\033\\[[0-9;]*m//g')
   assert_contains "$plain" "4 turns"
+  [[ "$(wc -l <"$transcript_log" | tr -d '[:space:]')" == "$transcript_scans" ]] ||
+    fail "status line rescanned the full transcript while completing a partial record"
+
+  cat >"$transcript" <<'EOF'
+{"type":"assistant","message":{"content":"prefix padding prefix padding prefix padding prefix padding prefix padding prefix padding"}}
+{"type":"custom-title","customTitle":"Original"}
+{"type":"user","message":{"content":"replacement prompt"}}
+{"type":"assistant","message":{"content":"suffix padding suffix padding suffix padding suffix padding suffix padding suffix padding"}}
+EOF
+  output=$(printf '%s' "$input" |
+    HOME="$home" HOSTNAME=ci-host PATH="$status_bin:$PATH" \
+      XDG_CACHE_HOME="$home/.cache" \
+      CLAUDE_STATUS_LINE_CACHE_TTL_SECONDS=60 \
+      STATUS_GIT_LOG="$git_log" STATUS_REAL_GIT="$real_git" \
+      STATUS_REAL_PATH="$real_path" \
+      STATUS_REAL_JQ="$real_jq" STATUS_TRANSCRIPT="$transcript" \
+      STATUS_TRANSCRIPT_LOG="$transcript_log" \
+      bash "$root/plugins/status-line/scripts/status-line.sh")
+  plain=$(printf '%s' "$output" | sed $'s/\033\\[[0-9;]*m//g')
+  assert_contains "$plain" "Original"
+  cp -p "$transcript" "$tmp/transcript-timestamp"
+  sleep 1
+
+  cat >"$transcript" <<'EOF'
+{"type":"assistant","message":{"content":"prefix padding prefix padding prefix padding prefix padding prefix padding prefix padding"}}
+{"type":"custom-title","customTitle":"Replaced"}
+{"type":"user","message":{"content":"replacement prompt"}}
+{"type":"assistant","message":{"content":"suffix padding suffix padding suffix padding suffix padding suffix padding suffix padding"}}
+EOF
+  touch -r "$tmp/transcript-timestamp" "$transcript"
+  transcript_scans=$(wc -l <"$transcript_log" | tr -d '[:space:]')
+  output=$(printf '%s' "$input" |
+    HOME="$home" HOSTNAME=ci-host PATH="$status_bin:$PATH" \
+      XDG_CACHE_HOME="$home/.cache" \
+      CLAUDE_STATUS_LINE_CACHE_TTL_SECONDS=60 \
+      STATUS_GIT_LOG="$git_log" STATUS_REAL_GIT="$real_git" \
+      STATUS_REAL_PATH="$real_path" \
+      STATUS_REAL_JQ="$real_jq" STATUS_TRANSCRIPT="$transcript" \
+      STATUS_TRANSCRIPT_LOG="$transcript_log" \
+      bash "$root/plugins/status-line/scripts/status-line.sh")
+  plain=$(printf '%s' "$output" | sed $'s/\033\\[[0-9;]*m//g')
+  assert_contains "$plain" "Replaced"
+  [[ "$plain" != *"Original"* ]] || fail "status line reused a stale same-inode transcript cache"
+  [[ "$(wc -l <"$transcript_log" | tr -d '[:space:]')" == "$((transcript_scans + 1))" ]] ||
+    fail "status line did not fully rescan a replaced same-inode transcript"
+
+  cat >"$tmp/atomic-replacement.jsonl" <<'EOF'
+{"type":"custom-title","customTitle":"Atomic replacement"}
+{"type":"user","message":{"content":"replacement prompt one"}}
+{"type":"user","message":{"content":"replacement prompt two"}}
+EOF
+  mv "$tmp/atomic-replacement.jsonl" "$transcript"
+  transcript_scans=$(wc -l <"$transcript_log" | tr -d '[:space:]')
+  output=$(printf '%s' "$input" |
+    HOME="$home" HOSTNAME=ci-host PATH="$status_bin:$PATH" \
+      XDG_CACHE_HOME="$home/.cache" \
+      CLAUDE_STATUS_LINE_CACHE_TTL_SECONDS=60 \
+      STATUS_GIT_LOG="$git_log" STATUS_REAL_GIT="$real_git" \
+      STATUS_REAL_PATH="$real_path" \
+      STATUS_REAL_JQ="$real_jq" STATUS_TRANSCRIPT="$transcript" \
+      STATUS_TRANSCRIPT_LOG="$transcript_log" \
+      bash "$root/plugins/status-line/scripts/status-line.sh")
+  plain=$(printf '%s' "$output" | sed $'s/\033\\[[0-9;]*m//g')
+  assert_contains "$plain" "Atomic replacement"
+  assert_contains "$plain" "2 turns"
+  [[ "$(wc -l <"$transcript_log" | tr -d '[:space:]')" == "$((transcript_scans + 1))" ]] ||
+    fail "status line did not fully rescan a replacement inode"
+
+  transcript_scans=$((transcript_scans + 1))
+  printf '%s\n' '{"type":"user","message":{"content":"after truncation"}}' >"$transcript"
+  output=$(printf '%s' "$input" |
+    HOME="$home" HOSTNAME=ci-host PATH="$status_bin:$PATH" \
+      XDG_CACHE_HOME="$home/.cache" \
+      CLAUDE_STATUS_LINE_CACHE_TTL_SECONDS=60 \
+      STATUS_GIT_LOG="$git_log" STATUS_REAL_GIT="$real_git" \
+      STATUS_REAL_PATH="$real_path" \
+      STATUS_REAL_JQ="$real_jq" STATUS_TRANSCRIPT="$transcript" \
+      STATUS_TRANSCRIPT_LOG="$transcript_log" \
+      bash "$root/plugins/status-line/scripts/status-line.sh")
+  plain=$(printf '%s' "$output" | sed $'s/\033\\[[0-9;]*m//g')
+  assert_contains "$plain" "1 turns"
+  [[ "$plain" != *"Atomic replacement"* ]] || fail "status line reused cache state after truncation"
+  [[ "$(wc -l <"$transcript_log" | tr -d '[:space:]')" == "$((transcript_scans + 1))" ]] ||
+    fail "status line did not fully rescan a truncated transcript"
+
+  transcript_scans=$((transcript_scans + 1))
+  awk 'BEGIN {
+    for (i = 1; i <= 20000; i++) {
+      if (i % 2 == 0)
+        print "{\"type\":\"user\",\"message\":{\"content\":\"bounded growth prompt\"}}"
+      else
+        print "{\"type\":\"assistant\",\"message\":{\"content\":\"bounded response\"}}"
+    }
+  }' >>"$transcript"
+  output=$(printf '%s' "$input" |
+    HOME="$home" HOSTNAME=ci-host PATH="$status_bin:$PATH" \
+      XDG_CACHE_HOME="$home/.cache" \
+      CLAUDE_STATUS_LINE_CACHE_TTL_SECONDS=60 \
+      STATUS_GIT_LOG="$git_log" STATUS_REAL_GIT="$real_git" \
+      STATUS_REAL_PATH="$real_path" \
+      STATUS_REAL_JQ="$real_jq" STATUS_TRANSCRIPT="$transcript" \
+      STATUS_TRANSCRIPT_LOG="$transcript_log" \
+      bash "$root/plugins/status-line/scripts/status-line.sh")
+  plain=$(printf '%s' "$output" | sed $'s/\033\\[[0-9;]*m//g')
+  assert_contains "$plain" "10001 turns"
+  [[ "$(wc -l <"$transcript_log" | tr -d '[:space:]')" == "$transcript_scans" ]] ||
+    fail "status line fully rescanned a large appended transcript"
+
+  printf '%s\n' '{"type":"user","message":{"content":"bounded tail append"}}' >>"$transcript"
+  output=$(printf '%s' "$input" |
+    HOME="$home" HOSTNAME=ci-host PATH="$status_bin:$PATH" \
+      XDG_CACHE_HOME="$home/.cache" \
+      CLAUDE_STATUS_LINE_CACHE_TTL_SECONDS=60 \
+      STATUS_GIT_LOG="$git_log" STATUS_REAL_GIT="$real_git" \
+      STATUS_REAL_PATH="$real_path" \
+      STATUS_REAL_JQ="$real_jq" STATUS_TRANSCRIPT="$transcript" \
+      STATUS_TRANSCRIPT_LOG="$transcript_log" \
+      bash "$root/plugins/status-line/scripts/status-line.sh")
+  plain=$(printf '%s' "$output" | sed $'s/\033\\[[0-9;]*m//g')
+  assert_contains "$plain" "10002 turns"
+  [[ "$(wc -l <"$transcript_log" | tr -d '[:space:]')" == "$transcript_scans" ]] ||
+    fail "status line fully rescanned after a bounded tail append"
 }
 
 check_shell
