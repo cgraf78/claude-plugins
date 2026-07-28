@@ -151,14 +151,27 @@ _status_transcript_reduce() {
 
 _status_transcript_summary() {
   local transcript="$1" offset="$2" count="$3" turns="$4" title="$5"
+  local head_status drain_status
+  local -a range_status
 
   if [ "$offset" -eq 0 ]; then
     _status_transcript_reduce 0 "" "$transcript"
     return
   fi
 
-  dd if="$transcript" bs=1 skip="$offset" count="$count" 2>/dev/null |
+  # Emit the captured range, then drain concurrent growth so tail reaches EOF.
+  tail -c "+$((offset + 1))" "$transcript" 2>/dev/null |
+    {
+      head -c "$count"
+      head_status=$?
+      cat >/dev/null
+      drain_status=$?
+      [ "$head_status" -eq 0 ] && [ "$drain_status" -eq 0 ]
+    } |
     _status_transcript_reduce "$turns" "$title"
+  range_status=("${PIPESTATUS[@]}")
+  [ "${range_status[0]}" -eq 0 ] && [ "${range_status[1]}" -eq 0 ] &&
+    [ "${range_status[2]}" -eq 0 ]
 }
 
 # ANSI colors
