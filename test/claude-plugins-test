@@ -111,26 +111,128 @@ EOF
 check_status_line() {
   local home="$tmp/home"
   local work="$home/work"
-  mkdir -p "$work"
+  local status_bin="$tmp/status-bin"
+  local git_log="$tmp/status-git.log"
+  local transcript_log="$tmp/status-transcript.log"
+  local transcript="$tmp/transcript.jsonl"
+  local real_git real_jq real_path
+  mkdir -p "$work" "$status_bin"
   git -C "$work" init -q
   git -C "$work" checkout -q -b main
+  printf 'changed\n' >"$work/dirty.txt"
+  cat >"$transcript" <<'EOF'
+{"type":"user","message":{"content":"first prompt"}}
+{"type":"assistant","message":{"content":"response"}}
+{"type":"custom-title","customTitle":"Performance scrub"}
+{"type":"user","message":{"content":"second prompt"}}
+EOF
 
-  local input output plain
-  input=$(jq -cn --arg cwd "$work" '{
+  real_git=$(command -v git)
+  real_jq=$(command -v jq)
+  real_path=$PATH
+  cat >"$status_bin/git" <<'EOF'
+#!/usr/bin/env bash
+printf '%s\n' "$*" >>"$STATUS_GIT_LOG"
+PATH="$STATUS_REAL_PATH" exec "$STATUS_REAL_GIT" "$@"
+EOF
+  cat >"$status_bin/jq" <<'EOF'
+#!/usr/bin/env bash
+for arg in "$@"; do
+  if [[ "$arg" == "$STATUS_TRANSCRIPT" ]]; then
+    printf 'scan\n' >>"$STATUS_TRANSCRIPT_LOG"
+    break
+  fi
+done
+exec "$STATUS_REAL_JQ" "$@"
+EOF
+  chmod +x "$status_bin/git" "$status_bin/jq"
+
+  local input output plain git_calls transcript_scans
+  # shellcheck disable=SC2016 # $cwd and $transcript are jq variables.
+  input=$("$real_jq" -cn --arg cwd "$work" --arg transcript "$transcript" '{
     workspace: {current_dir: $cwd},
     model: {id: "claude-sonnet-4-5-20250929"},
     context_window: {used_percentage: 42},
-    cost: {total_cost_usd: 1.23}
+    cost: {total_cost_usd: 1.23},
+    transcript_path: $transcript
   }')
   output=$(printf '%s' "$input" |
-    HOME="$home" HOSTNAME=ci-host \
+    HOME="$home" HOSTNAME=ci-host PATH="$status_bin:$PATH" \
+      XDG_CACHE_HOME="$home/.cache" \
+      CLAUDE_STATUS_LINE_CACHE_TTL_SECONDS=60 \
+      STATUS_GIT_LOG="$git_log" STATUS_REAL_GIT="$real_git" \
+      STATUS_REAL_PATH="$real_path" \
+      STATUS_REAL_JQ="$real_jq" STATUS_TRANSCRIPT="$transcript" \
+      STATUS_TRANSCRIPT_LOG="$transcript_log" \
       bash "$root/plugins/status-line/scripts/status-line.sh")
   plain=$(printf '%s' "$output" | sed $'s/\033\\[[0-9;]*m//g')
 
-  assert_contains "$plain" "ci-host | ~/work (main)"
+  assert_contains "$plain" "ci-host | ~/work (main %)"
+  assert_contains "$plain" "Performance scrub"
   assert_contains "$plain" "sonnet-4.5"
   assert_contains "$plain" "42%"
   assert_contains "$plain" "\$1.23"
+  assert_contains "$plain" "2 turns"
+
+  git_calls=$(wc -l <"$git_log" | tr -d '[:space:]')
+  transcript_scans=$(wc -l <"$transcript_log" | tr -d '[:space:]')
+  printf '%s' "$input" |
+    HOME="$home" HOSTNAME=ci-host PATH="$status_bin:$PATH" \
+      XDG_CACHE_HOME="$home/.cache" \
+      CLAUDE_STATUS_LINE_CACHE_TTL_SECONDS=60 \
+      STATUS_GIT_LOG="$git_log" STATUS_REAL_GIT="$real_git" \
+      STATUS_REAL_PATH="$real_path" \
+      STATUS_REAL_JQ="$real_jq" STATUS_TRANSCRIPT="$transcript" \
+      STATUS_TRANSCRIPT_LOG="$transcript_log" \
+      bash "$root/plugins/status-line/scripts/status-line.sh" >/dev/null
+  [[ "$(wc -l <"$git_log" | tr -d '[:space:]')" == "$git_calls" ]] ||
+    fail "status line repeated Git discovery for unchanged input"
+  [[ "$(wc -l <"$transcript_log" | tr -d '[:space:]')" == "$transcript_scans" ]] ||
+    fail "status line rescanned an unchanged transcript"
+
+  printf '%s\n' '{"type":"user","message":{"content":"third prompt"}}' >>"$transcript"
+  output=$(printf '%s' "$input" |
+    HOME="$home" HOSTNAME=ci-host PATH="$status_bin:$PATH" \
+      XDG_CACHE_HOME="$home/.cache" \
+      CLAUDE_STATUS_LINE_CACHE_TTL_SECONDS=60 \
+      STATUS_GIT_LOG="$git_log" STATUS_REAL_GIT="$real_git" \
+      STATUS_REAL_PATH="$real_path" \
+      STATUS_REAL_JQ="$real_jq" STATUS_TRANSCRIPT="$transcript" \
+      STATUS_TRANSCRIPT_LOG="$transcript_log" \
+      bash "$root/plugins/status-line/scripts/status-line.sh")
+  plain=$(printf '%s' "$output" | sed $'s/\033\\[[0-9;]*m//g')
+  assert_contains "$plain" "3 turns"
+  [[ "$(wc -l <"$git_log" | tr -d '[:space:]')" == "$git_calls" ]] ||
+    fail "status line discarded a valid Git cache after transcript growth"
+  [[ "$(wc -l <"$transcript_log" | tr -d '[:space:]')" == "$((transcript_scans + 1))" ]] ||
+    fail "status line did not rescan a changed transcript exactly once"
+
+  printf '%s' '{"type":"user","message":' >>"$transcript"
+  output=$(printf '%s' "$input" |
+    HOME="$home" HOSTNAME=ci-host PATH="$status_bin:$PATH" \
+      XDG_CACHE_HOME="$home/.cache" \
+      CLAUDE_STATUS_LINE_CACHE_TTL_SECONDS=60 \
+      STATUS_GIT_LOG="$git_log" STATUS_REAL_GIT="$real_git" \
+      STATUS_REAL_PATH="$real_path" \
+      STATUS_REAL_JQ="$real_jq" STATUS_TRANSCRIPT="$transcript" \
+      STATUS_TRANSCRIPT_LOG="$transcript_log" \
+      bash "$root/plugins/status-line/scripts/status-line.sh")
+  plain=$(printf '%s' "$output" | sed $'s/\033\\[[0-9;]*m//g')
+  assert_contains "$plain" "Performance scrub"
+  assert_contains "$plain" "3 turns"
+
+  printf '%s\n' '{"content":"fourth prompt"}}' >>"$transcript"
+  output=$(printf '%s' "$input" |
+    HOME="$home" HOSTNAME=ci-host PATH="$status_bin:$PATH" \
+      XDG_CACHE_HOME="$home/.cache" \
+      CLAUDE_STATUS_LINE_CACHE_TTL_SECONDS=60 \
+      STATUS_GIT_LOG="$git_log" STATUS_REAL_GIT="$real_git" \
+      STATUS_REAL_PATH="$real_path" \
+      STATUS_REAL_JQ="$real_jq" STATUS_TRANSCRIPT="$transcript" \
+      STATUS_TRANSCRIPT_LOG="$transcript_log" \
+      bash "$root/plugins/status-line/scripts/status-line.sh")
+  plain=$(printf '%s' "$output" | sed $'s/\033\\[[0-9;]*m//g')
+  assert_contains "$plain" "4 turns"
 }
 
 check_shell
