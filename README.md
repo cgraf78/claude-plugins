@@ -1,5 +1,7 @@
 # claude-plugins
 
+![Tests](https://github.com/cgraf78/claude-plugins/actions/workflows/test.yml/badge.svg?branch=main)
+
 A collection of [Claude Code](https://claude.ai/code) plugins.
 
 ## Getting started
