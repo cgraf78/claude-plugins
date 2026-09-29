@@ -11,9 +11,9 @@ Configure the Claude Code status line to use this plugin.
 
 ## Steps
 
-1. Read `~/.claude/plugins/installed_plugins.json` and find the entry whose `name` is `status-line` to confirm the plugin is installed. If not found, tell the user the plugin does not appear to be installed and stop.
+1. Read `~/.claude/plugins/installed_plugins.json`. Installed plugins live under its top-level `plugins` object, keyed as `<plugin>@<marketplace>`; find the `status-line@cgraf78-claude-plugins` key (its value is an array with one install record per scope, such as `user` or `project`) to confirm the plugin is installed. If not found, tell the user the plugin does not appear to be installed and stop.
 
-2. The script lives at the version-independent glob path `~/.claude/plugins/cache/cgraf78-claude-plugins/status-line/*/scripts/status-line.sh` (the `*` matches whatever version is installed, so the config survives plugin updates). Verify a file matches that glob.
+2. The script lives at `<installPath>/scripts/status-line.sh`, where `installPath` comes from the `user`-scope record, or the first record when there is no `user` one (the same record the command below resolves; for example `~/.claude/plugins/cache/cgraf78-claude-plugins/status-line/<version>`). Verify the script exists there. Do not use a `status-line/*/scripts/status-line.sh` glob: when more than one version is cached, bash expands every match and runs the lexically first one, which can be an older version.
 
 3. Check whether `~/.claude/settings.json` exists.
    - If it does not exist, create it with the content `{}`.
@@ -21,9 +21,9 @@ Configure the Claude Code status line to use this plugin.
      ```json
      "statusLine": {
        "type": "command",
-       "command": "bash ~/.claude/plugins/cache/cgraf78-claude-plugins/status-line/*/scripts/status-line.sh"
+       "command": "bash \"$(jq -r '.plugins[\"status-line@cgraf78-claude-plugins\"] | (map(select(.scope == \"user\"))[0] // .[0]).installPath' ~/.claude/plugins/installed_plugins.json)/scripts/status-line.sh\""
      }
      ```
-   Use the glob path with `~` and `*` for the version — this survives plugin updates without reconfiguration.
+   The command resolves `installPath` from `installed_plugins.json` on each render, so it follows the recorded install across plugin updates without reconfiguration. It needs `jq`, which the script already requires. If the plugin entry or `jq` is missing, the command fails and the status line is blank; reinstalling the plugin or `jq` restores it.
 
 4. Confirm to the user that the status line has been configured and will take effect immediately.

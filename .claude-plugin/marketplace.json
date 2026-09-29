@@ -7,7 +7,7 @@
   "plugins": [
     {
       "name": "status-line",
-      "description": "Rich status line showing host, directory, git branch, model, context usage, cost, and turn count.",
+      "description": "Rich status line showing host, directory, git branch, session name, model, context usage, cost, and turn count.",
       "source": "./plugins/status-line",
       "category": "productivity",
       "homepage": "https://github.com/cgraf78/claude-plugins"
