@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Claude Code status line.
-# Format: hostname | path (branch flags) | 🤖 model | 🧠 ctx% | 💰 $cost | 💬 N turns
+# Format: hostname | path (branch flags) | ⚡session | 🤖 model | 🧠 ctx% | 💰 $cost | 💬 N turns
 
 set -o pipefail
 

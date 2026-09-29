@@ -12,7 +12,7 @@ curl -fsSL https://raw.githubusercontent.com/cgraf78/claude-plugins/main/install
 
 ## Plugins
 
-- [status-line](./plugins/status-line/) — Rich status line showing host, directory, git, model, context, cost, and turns
+- [status-line](./plugins/status-line/) — Rich status line showing host, directory, git, session name, model, context, cost, and turns
 
 ## License
 
