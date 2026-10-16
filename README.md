@@ -22,8 +22,9 @@ In a Claude Code session:
 /plugin install status-line@cgraf78-claude-plugins
 ```
 
-Then run the plugin's `status-line-setup` skill (type `/status-line-setup`;
-Claude Code may list it as `/status-line:status-line-setup`). It adds the
+Then run the plugin's `status-line-setup` skill
+(`/status-line:status-line-setup`, or `/status-line-setup` where Claude Code
+offers the short form). It adds the
 `statusLine` command to `~/.claude/settings.json`; installing the plugin alone
 does not change your status line.
 
