@@ -1,6 +1,7 @@
 # claude-plugins
 
-![Tests](https://github.com/cgraf78/claude-plugins/actions/workflows/test.yml/badge.svg?branch=main)
+[![Tests](https://github.com/cgraf78/claude-plugins/actions/workflows/test.yml/badge.svg?branch=main)](https://github.com/cgraf78/claude-plugins/actions/workflows/test.yml?query=branch%3Amain)
+[![License](https://img.shields.io/badge/license-MIT-67ac09)](LICENSE)
 
 A [Claude Code](https://claude.ai/code) plugin marketplace. Today it holds one
 plugin, [status-line](./plugins/status-line/), a rich status line:
