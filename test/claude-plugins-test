@@ -2,6 +2,9 @@
 
 set -euo pipefail
 
+# Installer children must keep the fixture PATH that selects its fake Claude.
+unset BASH_ENV ENV
+
 test_dir="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 root="${test_dir%/test}"
 tmp=$(mktemp -d)
@@ -429,12 +432,34 @@ git -C "$caller" init --quiet --template='' --initial-branch=caller
 printf '%s\n' caller >"$caller/index-fixture"
 git -C "$caller" add index-fixture
 caller_index=$(cksum <"$caller/.git/index")
+
+caller_bin="$tmp/caller-bin"
+caller_startup="$tmp/caller-startup"
+caller_marker="$tmp/caller-claude-ran"
+mkdir "$caller_bin"
+cat >"$caller_bin/claude" <<'CLAUDE'
+#!/bin/sh
+: >"$CALLER_CLAUDE_MARKER"
+exit 47
+CLAUDE
+chmod +x "$caller_bin/claude"
+cat >"$caller_startup" <<'STARTUP'
+case "${0##*/}" in
+  install.sh) export PATH="$CALLER_CLAUDE_BIN:$PATH" ;;
+esac
+STARTUP
+
+suite_status=0
 (
-  cd -P -- "$root"
+  cd -P -- "$root" || exit 1
   CDPATH=. TMPDIR="$scratch" GIT_DIR="$caller/.git" GIT_WORK_TREE="$caller" \
     GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=init.defaultBranch GIT_CONFIG_VALUE_0=external \
+    BASH_ENV="$caller_startup" CALLER_CLAUDE_BIN="$caller_bin" \
+    CALLER_CLAUDE_MARKER="$caller_marker" \
     "$BASH" test/claude-plugins-test --fixture-child
-)
+) || suite_status=$?
+[[ ! -e "$caller_marker" ]] || fail "suite invoked the caller's Claude through BASH_ENV"
+((suite_status == 0)) || exit "$suite_status"
 [[ "$(git -C "$caller" symbolic-ref --short HEAD)" == caller ]] ||
   fail "suite changed the caller branch"
 [[ "$(cksum <"$caller/.git/index")" == "$caller_index" ]] ||
