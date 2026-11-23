@@ -7,15 +7,17 @@ unset BASH_ENV ENV
 
 test_dir="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 root="${test_dir%/test}"
-tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT
 
-case "$tmp" in
+# Check the caller's parent before mktemp can choose its platform default.
+tmp_parent=${TMPDIR:-/tmp}
+case "$tmp_parent" in
   *:*)
     printf '%s\n' 'claude-plugins-test: TMPDIR must not contain a colon (:) for mock PATH entries' >&2
     exit 2
     ;;
 esac
+tmp=$(mktemp -d "${tmp_parent%/}/claude-plugins-test.XXXXXXXX")
+trap 'rm -rf "$tmp"' EXIT
 
 # Git treats inherited repository and configuration selectors as higher
 # priority than the fixture's working directory and local configuration.
