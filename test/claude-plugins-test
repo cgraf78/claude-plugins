@@ -2,7 +2,7 @@
 
 set -euo pipefail
 
-test_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+test_dir="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
 root="${test_dir%/test}"
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
@@ -429,9 +429,12 @@ git -C "$caller" init --quiet --template='' --initial-branch=caller
 printf '%s\n' caller >"$caller/index-fixture"
 git -C "$caller" add index-fixture
 caller_index=$(cksum <"$caller/.git/index")
-TMPDIR="$scratch" GIT_DIR="$caller/.git" GIT_WORK_TREE="$caller" \
-  GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=init.defaultBranch GIT_CONFIG_VALUE_0=external \
-  "$BASH" "$test_dir/claude-plugins-test" --fixture-child
+(
+  cd -P -- "$root"
+  CDPATH=. TMPDIR="$scratch" GIT_DIR="$caller/.git" GIT_WORK_TREE="$caller" \
+    GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=init.defaultBranch GIT_CONFIG_VALUE_0=external \
+    "$BASH" test/claude-plugins-test --fixture-child
+)
 [[ "$(git -C "$caller" symbolic-ref --short HEAD)" == caller ]] ||
   fail "suite changed the caller branch"
 [[ "$(cksum <"$caller/.git/index")" == "$caller_index" ]] ||
