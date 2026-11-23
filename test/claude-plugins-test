@@ -411,9 +411,36 @@ EOF
   assert_contains "$plain" "10003 turns"
 }
 
-check_shell
-check_manifests
-check_installer
-check_status_line
+if [[ "${1:-}" == --fixture-child ]]; then
+  check_shell
+  check_manifests
+  check_installer
+  check_status_line
+  printf 'claude-plugins-test: ok\n'
+  exit
+fi
 
-printf 'claude-plugins-test: ok\n'
+# Exercise the normal suite with its scratch directory inside a disposable
+# caller checkout, matching an invocation from one of that checkout's hooks.
+caller="$tmp/caller"
+scratch="$caller/scratch"
+mkdir -p "$scratch"
+git -C "$caller" init --quiet --template='' --initial-branch=caller
+printf '%s\n' caller >"$caller/index-fixture"
+git -C "$caller" add index-fixture
+caller_index=$(cksum <"$caller/.git/index")
+TMPDIR="$scratch" GIT_DIR="$caller/.git" GIT_WORK_TREE="$caller" \
+  GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=init.defaultBranch GIT_CONFIG_VALUE_0=external \
+  "$BASH" "$test_dir/claude-plugins-test" --fixture-child
+[[ "$(git -C "$caller" symbolic-ref --short HEAD)" == caller ]] ||
+  fail "suite changed the caller branch"
+[[ "$(cksum <"$caller/.git/index")" == "$caller_index" ]] ||
+  fail "suite changed the caller index"
+
+colon_tmp="$tmp/tmp:parent"
+mkdir "$colon_tmp"
+colon_status=0
+colon_output=$(TMPDIR="$colon_tmp" "$BASH" "$test_dir/claude-plugins-test" --fixture-child 2>&1) ||
+  colon_status=$?
+[[ "$colon_status" == 2 ]] || fail "suite accepted a colon in TMPDIR"
+assert_contains "$colon_output" "TMPDIR must not contain a colon"
