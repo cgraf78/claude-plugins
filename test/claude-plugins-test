@@ -28,6 +28,11 @@ unset GIT_TEMPLATE_DIR GIT_WORK_TREE GIT_IMPLICIT_WORK_TREE
 unset GIT_CONFIG GIT_CONFIG_COUNT GIT_CONFIG_PARAMETERS GIT_CONFIG_SYSTEM
 export GIT_CONFIG_NOSYSTEM=1 GIT_CONFIG_GLOBAL="$tmp/gitconfig"
 
+# Container checkouts can be mounted from a different uid. Trust this exact
+# source path only for the read that enumerates its tracked shell scripts.
+checkout_gitconfig="$tmp/checkout-gitconfig"
+git config --file "$checkout_gitconfig" safe.directory "$root"
+
 fail() {
   printf 'claude-plugins-test: %s\n' "$*" >&2
   exit 1
@@ -44,13 +49,13 @@ assert_contains() {
 check_shell() {
   local -a shell_files=()
 
-  local inventory file
-  inventory=$(git -C "$root" ls-files '*.sh') ||
+  local inventory="$tmp/shell-files" file
+  GIT_CONFIG_GLOBAL="$checkout_gitconfig" git -C "$root" ls-files -z -- '*.sh' >"$inventory" ||
     fail "cannot enumerate tracked shell scripts"
-  [[ -n "$inventory" ]] || fail "no tracked shell scripts found"
-  while IFS= read -r file; do
+  [[ -s "$inventory" ]] || fail "no tracked shell scripts found"
+  while IFS= read -r -d '' file; do
     shell_files+=("$file")
-  done <<<"$inventory"
+  done <"$inventory"
   shell_files+=("test/claude-plugins-test")
 
   for file in "${shell_files[@]}"; do
@@ -427,12 +432,15 @@ if [[ "${1:-}" == --fixture-child ]]; then
   exit
 fi
 
+# Exercise Git's ownership gate even when the CI checkout belongs to this uid.
+GIT_TEST_ASSUME_DIFFERENT_OWNER=1 check_shell
+
 # A producer can emit useful-looking partial results and still fail.
 inventory_status=0
 inventory_output=$(
   # shellcheck disable=SC2329 # Used by check_shell below.
   git() {
-    printf '%s\n' install.sh
+    printf '%s\0' install.sh
     return 17
   }
   check_shell 2>&1
