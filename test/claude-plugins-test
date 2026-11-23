@@ -2,17 +2,22 @@
 
 set -euo pipefail
 
-test_dir="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
-root="${test_dir%/test}"
-tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT
+# Installer children must keep the fixture PATH that selects its fake Claude.
+unset BASH_ENV ENV
 
-case "$tmp" in
+test_dir="$(CDPATH='' cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd -P)"
+root="${test_dir%/test}"
+
+# Check the caller's parent before mktemp can choose its platform default.
+tmp_parent=${TMPDIR:-/tmp}
+case "$tmp_parent" in
   *:*)
     printf '%s\n' 'claude-plugins-test: TMPDIR must not contain a colon (:) for mock PATH entries' >&2
     exit 2
     ;;
 esac
+tmp=$(mktemp -d "${tmp_parent%/}/claude-plugins-test.XXXXXXXX")
+trap 'rm -rf "$tmp"' EXIT
 
 # Git treats inherited repository and configuration selectors as higher
 # priority than the fixture's working directory and local configuration.
@@ -411,9 +416,61 @@ EOF
   assert_contains "$plain" "10003 turns"
 }
 
-check_shell
-check_manifests
-check_installer
-check_status_line
+if [[ "${1:-}" == --fixture-child ]]; then
+  check_shell
+  check_manifests
+  check_installer
+  check_status_line
+  printf 'claude-plugins-test: ok\n'
+  exit
+fi
 
-printf 'claude-plugins-test: ok\n'
+# Exercise the normal suite with its scratch directory inside a disposable
+# caller checkout, matching an invocation from one of that checkout's hooks.
+caller="$tmp/caller"
+scratch="$caller/scratch"
+mkdir -p "$scratch"
+git -C "$caller" init --quiet --template='' --initial-branch=caller
+printf '%s\n' caller >"$caller/index-fixture"
+git -C "$caller" add index-fixture
+caller_index=$(cksum <"$caller/.git/index")
+
+caller_bin="$tmp/caller-bin"
+caller_startup="$tmp/caller-startup"
+caller_marker="$tmp/caller-claude-ran"
+mkdir "$caller_bin"
+cat >"$caller_bin/claude" <<'CLAUDE'
+#!/bin/sh
+: >"$CALLER_CLAUDE_MARKER"
+exit 47
+CLAUDE
+chmod +x "$caller_bin/claude"
+cat >"$caller_startup" <<'STARTUP'
+case "${0##*/}" in
+  install.sh) export PATH="$CALLER_CLAUDE_BIN:$PATH" ;;
+esac
+STARTUP
+
+suite_status=0
+(
+  cd -P -- "$root" || exit 1
+  CDPATH=. TMPDIR="$scratch" GIT_DIR="$caller/.git" GIT_WORK_TREE="$caller" \
+    GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=init.defaultBranch GIT_CONFIG_VALUE_0=external \
+    BASH_ENV="$caller_startup" CALLER_CLAUDE_BIN="$caller_bin" \
+    CALLER_CLAUDE_MARKER="$caller_marker" \
+    "$BASH" test/claude-plugins-test --fixture-child
+) || suite_status=$?
+[[ ! -e "$caller_marker" ]] || fail "suite invoked the caller's Claude through BASH_ENV"
+((suite_status == 0)) || exit "$suite_status"
+[[ "$(git -C "$caller" symbolic-ref --short HEAD)" == caller ]] ||
+  fail "suite changed the caller branch"
+[[ "$(cksum <"$caller/.git/index")" == "$caller_index" ]] ||
+  fail "suite changed the caller index"
+
+colon_tmp="$tmp/tmp:parent"
+mkdir "$colon_tmp"
+colon_status=0
+colon_output=$(TMPDIR="$colon_tmp" "$BASH" "$test_dir/claude-plugins-test" --fixture-child 2>&1) ||
+  colon_status=$?
+[[ "$colon_status" == 2 ]] || fail "suite accepted a colon in TMPDIR"
+assert_contains "$colon_output" "TMPDIR must not contain a colon"
